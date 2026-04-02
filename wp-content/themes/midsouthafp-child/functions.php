@@ -2,7 +2,7 @@
 /**
  * Theme: MidSouth AFP Child
  * Author: MidSouth AFP
- * Version: 1.0.4
+ * Version: 1.0.5
  *
  * @package MidSouthAFP_Child
  */
@@ -235,6 +235,7 @@ function midsouthafp_child_organization_schema() {
 
 	$schema = array(
 		'@context'        => 'https://schema.org',
+		'@id'             => 'https://www.midsouthafp.org/#organization',
 		'@type'           => 'Organization',
 		'name'            => 'MidSouth Association for Financial Professionals',
 		'alternateName'   => 'MidSouth AFP',
@@ -389,6 +390,209 @@ function midsouthafp_child_build_event_schema( $event_id ) {
 	return $schema;
 }
 add_action( 'wp_head', 'midsouthafp_child_event_schema' );
+
+/**
+ * Remove Yoast graph pieces that duplicate our custom JSON-LD.
+ *
+ * - Drops Yoast's Organization (we output a richer Organization on the homepage).
+ * - On TEC event views, drops Yoast Event pieces if Yoast SEO for Events (or similar) is active.
+ */
+function midsouthafp_child_wpseo_schema_graph_pieces( $pieces, $context ) {
+	if ( ! is_array( $pieces ) ) {
+		return $pieces;
+	}
+
+	foreach ( $pieces as $key => $piece ) {
+		if ( ! is_object( $piece ) ) {
+			continue;
+		}
+
+		$class = get_class( $piece );
+
+		// Yoast's Organization generator class name ends with \Organization.
+		if ( preg_match( '/\\\\Organization$/', $class ) || 'Organization' === $class ) {
+			unset( $pieces[ $key ] );
+			continue;
+		}
+
+		if ( function_exists( 'tribe_is_event_query' ) && tribe_is_event_query() ) {
+			if ( preg_match( '/\\\\Event$/', $class ) || 'Event' === $class ) {
+				unset( $pieces[ $key ] );
+			}
+		}
+	}
+
+	return array_values( $pieces );
+}
+add_filter( 'wpseo_schema_graph_pieces', 'midsouthafp_child_wpseo_schema_graph_pieces', 10, 2 );
+
+/**
+ * Ensure Yoast XML sitemaps are enabled (idempotent; runs when Yoast is active).
+ */
+function midsouthafp_child_ensure_yoast_xml_sitemap_enabled() {
+	if ( ! defined( 'WPSEO_VERSION' ) ) {
+		return;
+	}
+	$options = get_option( 'wpseo', array() );
+	if ( empty( $options['enable_xml_sitemap'] ) ) {
+		$options['enable_xml_sitemap'] = true;
+		update_option( 'wpseo', $options );
+	}
+}
+add_action( 'init', 'midsouthafp_child_ensure_yoast_xml_sitemap_enabled', 20 );
+
+/**
+ * Include The Events Calendar events in Yoast XML sitemaps when not excluded.
+ *
+ * @param bool   $excluded  Whether this post type is excluded.
+ * @param string $post_type Post type name.
+ * @return bool
+ */
+function midsouthafp_child_wpseo_sitemap_include_tribe_events( $excluded, $post_type ) {
+	if ( 'tribe_events' === $post_type ) {
+		return false;
+	}
+	return $excluded;
+}
+add_filter( 'wpseo_sitemap_exclude_post_type', 'midsouthafp_child_wpseo_sitemap_include_tribe_events', 10, 2 );
+
+/**
+ * Ensure virtual robots.txt references the Yoast sitemap index.
+ *
+ * @param string $output Robots.txt content.
+ * @param bool   $public Whether the site is public.
+ * @return string
+ */
+function midsouthafp_child_robots_txt_sitemap( $output, $public ) {
+	$sitemap_url = home_url( '/sitemap_index.xml' );
+	if ( false === strpos( $output, $sitemap_url ) ) {
+		$output .= "\nSitemap: " . $sitemap_url . "\n";
+	}
+	return $output;
+}
+add_filter( 'robots_txt', 'midsouthafp_child_robots_txt_sitemap', 10, 2 );
+
+/**
+ * One-time Yoast social settings configurator.
+ * Visit: /wp-admin/?msafp_yoast_social=1 (admin only).
+ *
+ * TODO: Replace og_default_image with a 1200×630 branded image.
+ * Current: afp-logo.jpg (logo only, not optimized for social share).
+ * Recommended: Create navy background + AFP logo + tagline at 1200×630.
+ * Upload to Media Library, get URL, update og_default_image in $updates below.
+ */
+function midsouthafp_child_configure_yoast_social() {
+	if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	if ( empty( $_GET['msafp_yoast_social'] ) ) {
+		return;
+	}
+	if ( ! defined( 'WPSEO_VERSION' ) ) {
+		wp_die( esc_html__( 'Yoast SEO is not active.', 'midsouthafp-child' ) );
+	}
+
+	$current = get_option( 'wpseo_social', array() );
+
+	$updates = array(
+		'opengraph'           => true,
+		'og_default_image'    => 'https://midsouthafp.org/wp-content/uploads/2024/08/afp-logo.jpg',
+		'og_default_image_id' => '',
+		'og_frontpage_title'  => 'MidSouth AFP – Empowering Financial Professionals',
+		'og_frontpage_desc'   => 'MidSouth AFP is a Memphis-based nonprofit for treasury '
+			. 'and finance professionals. Quarterly events, CTP credits, '
+			. 'and peer networking since 1979.',
+		'twitter'             => true,
+		'twitter_card_type'   => 'summary_large_image',
+		'twitter_site'        => '',
+		'facebook_site'       => 'https://www.facebook.com/midsouthafp',
+		'pinterest'           => false,
+		'youtube'             => '',
+	);
+
+	$merged = array_merge( $current, $updates );
+	update_option( 'wpseo_social', $merged );
+
+	$front_page_id = (int) get_option( 'page_on_front' );
+	if ( $front_page_id > 0 ) {
+		update_post_meta(
+			$front_page_id,
+			'_yoast_wpseo_metadesc',
+			'MidSouth AFP is a Memphis-based nonprofit for treasury '
+			. 'and finance professionals. Join us for quarterly events, '
+			. 'education, and CTP continuing education credits.'
+		);
+		update_post_meta(
+			$front_page_id,
+			'_yoast_wpseo_title',
+			'MidSouth AFP – Empowering Financial Professionals in Memphis, TN'
+		);
+	}
+
+	$page_metas = array(
+		'events'             => array(
+			'title' => 'Events – MidSouth AFP | Memphis Finance Professionals',
+			'desc'  => 'Upcoming MidSouth AFP quarterly meetings, workshops, and '
+				. 'networking events for treasury and finance professionals '
+				. 'in Memphis and the Mid-South region.',
+		),
+		'resources'          => array(
+			'title' => 'Resources – MidSouth AFP',
+			'desc'  => 'Finance and treasury resources for AFP members — news, '
+				. 'podcasts, fintech updates, and industry focus reports.',
+		),
+		'contact-us'         => array(
+			'title' => 'Contact MidSouth AFP',
+			'desc'  => 'Get in touch with the MidSouth Association for Financial '
+				. 'Professionals. Based in Memphis, TN.',
+		),
+		'membership-invoice' => array(
+			'title' => 'Join MidSouth AFP – Membership',
+			'desc'  => 'Become a MidSouth AFP member. Access quarterly events, '
+				. 'CTP education credits, and a network of finance and '
+				. 'treasury professionals in the Mid-South region.',
+		),
+	);
+
+	foreach ( $page_metas as $slug => $meta ) {
+		$page = get_page_by_path( $slug, OBJECT, 'page' );
+		if ( $page instanceof WP_Post ) {
+			update_post_meta( $page->ID, '_yoast_wpseo_title', $meta['title'] );
+			update_post_meta( $page->ID, '_yoast_wpseo_metadesc', $meta['desc'] );
+		}
+	}
+
+	$fp_li = '';
+	if ( $front_page_id > 0 ) {
+		$fp_li = '<li>' . esc_html(
+			sprintf(
+				/* translators: %d: front page ID */
+				__( 'Front page meta title + description set (page ID %d)', 'midsouthafp-child' ),
+				$front_page_id
+			)
+		) . '</li>';
+	} else {
+		$fp_li = '<li style="color:orange">' . esc_html__( 'No static front page set — homepage meta not updated', 'midsouthafp-child' ) . '</li>';
+	}
+
+	wp_die(
+		'<div style="font-family:sans-serif;padding:2rem">' .
+		'<h2 style="color:green">' . esc_html__( 'Yoast social settings configured', 'midsouthafp-child' ) . '</h2>' .
+		'<ul>' .
+		'<li>' . esc_html__( 'Open Graph: enabled', 'midsouthafp-child' ) . '</li>' .
+		'<li>' . esc_html__( 'Default OG image: afp-logo.jpg', 'midsouthafp-child' ) . '</li>' .
+		'<li>' . esc_html__( 'Twitter card: summary_large_image', 'midsouthafp-child' ) . '</li>' .
+		'<li>' . esc_html__( 'Facebook page linked', 'midsouthafp-child' ) . '</li>' .
+		$fp_li .
+		'</ul>' .
+		'<p><a href="' . esc_url( admin_url( 'admin.php?page=wpseo_social' ) ) . '">' .
+		esc_html__( 'Verify in Yoast → Social', 'midsouthafp-child' ) . '</a></p>' .
+		'</div>',
+		esc_html__( 'Yoast Social Configured', 'midsouthafp-child' ),
+		array( 'response' => 200 )
+	);
+}
+add_action( 'admin_init', 'midsouthafp_child_configure_yoast_social' );
 
 /**
  * Purge Divi static CSS and common caches (shared implementation).
@@ -568,6 +772,43 @@ function midsouthafp_child_health_check() {
 		'value' => $seo_plugin,
 		'pass'  => 'NONE' !== $seo_plugin,
 		'note'  => 'Install Yoast SEO to replace fallback meta description',
+	);
+
+	$checks['yoast_active'] = array(
+		'value' => defined( 'WPSEO_VERSION' ) ? 'active v' . WPSEO_VERSION : 'not active',
+		'pass'  => defined( 'WPSEO_VERSION' ),
+		'note'  => 'Required for SEO meta, OG, and sitemap',
+	);
+
+	$wpseo_social = get_option( 'wpseo_social', array() );
+	$checks['yoast_og_enabled'] = array(
+		'value' => ! empty( $wpseo_social['opengraph'] ) ? 'enabled' : 'disabled',
+		'pass'  => ! empty( $wpseo_social['opengraph'] ),
+		'note'  => 'Open Graph must be on for LinkedIn/Facebook sharing',
+	);
+
+	$fp_id_for_yoast = (int) get_option( 'page_on_front' );
+	$fp_desc         = $fp_id_for_yoast ? get_post_meta( $fp_id_for_yoast, '_yoast_wpseo_metadesc', true ) : '';
+	$fp_desc_preview = $fp_desc
+		? ( strlen( $fp_desc ) > 60 ? substr( $fp_desc, 0, 60 ) . '...' : $fp_desc )
+		: 'NOT SET';
+	$checks['yoast_homepage_metadesc'] = array(
+		'value' => $fp_desc_preview,
+		'pass'  => ! empty( $fp_desc ),
+		'note'  => 'Homepage meta description (run ?msafp_yoast_social=1 to set)',
+	);
+
+	$wpseo_opts = get_option( 'wpseo', array() );
+	$checks['yoast_sitemap_enabled'] = array(
+		'value' => ! empty( $wpseo_opts['enable_xml_sitemap'] ) ? 'enabled' : 'disabled',
+		'pass'  => ! empty( $wpseo_opts['enable_xml_sitemap'] ),
+		'note'  => 'XML sitemap at /sitemap_index.xml',
+	);
+
+	$checks['fallback_meta_silent'] = array(
+		'value' => defined( 'WPSEO_VERSION' ) ? 'silent (Yoast active)' : 'ACTIVE (no SEO plugin)',
+		'pass'  => defined( 'WPSEO_VERSION' ),
+		'note'  => 'Fallback fires only when no SEO plugin detected',
 	);
 
 	$cache_dir = WP_CONTENT_DIR . '/et-cache';
