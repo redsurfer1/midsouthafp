@@ -1,0 +1,173 @@
+# Copyright (C) 2024 bPlugins
+# This file is distributed under the GPLv3.
+msgid ""
+msgstr ""
+"Project-Id-Version: Print Page - Block 1.1.2\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/print-page\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2024-08-08T08:26:36+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.8.1\n"
+"X-Domain: print-page\n"
+
+#. Plugin Name of the plugin
+msgid "Print Page - Block"
+msgstr ""
+
+#. Description of the plugin
+msgid "Print the entire page with single click"
+msgstr ""
+
+#. Author of the plugin
+msgid "bPlugins"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://bplugins.com"
+msgstr ""
+
+#: build/render.php:58
+#: build/index.js:1
+msgid "Printer Icon"
+msgstr ""
+
+#: build/index.js:1
+msgid "Default"
+msgstr ""
+
+#: build/index.js:1
+msgid "URL/Upload"
+msgstr ""
+
+#: build/index.js:1
+msgid "FC Printer"
+msgstr ""
+
+#: build/index.js:1
+msgid "FA Printer"
+msgstr ""
+
+#: build/index.js:1
+msgid "FI Printer"
+msgstr ""
+
+#: build/index.js:1
+msgid "AI Fill Printer"
+msgstr ""
+
+#: build/index.js:1
+msgid "AI Outline Printer"
+msgstr ""
+
+#: build/index.js:1
+msgid "AI Twotone Printer"
+msgstr ""
+
+#: build/index.js:1
+msgid "BI Printer"
+msgstr ""
+
+#: build/index.js:1
+msgid "Print Settings"
+msgstr ""
+
+#: build/index.js:1
+msgid "Print a Section?"
+msgstr ""
+
+#: build/index.js:1
+msgid "It will be good print! if you print the content section"
+msgstr ""
+
+#: build/index.js:1
+msgid "Enter html selector. Ex: #id .class"
+msgstr ""
+
+#: build/index.js:1
+msgid "Is in Modal"
+msgstr ""
+
+#: build/index.js:1
+msgid "Button Elements"
+msgstr ""
+
+#: build/index.js:1
+msgid "Show Icon"
+msgstr ""
+
+#: build/index.js:1
+msgid "Icon Type"
+msgstr ""
+
+#: build/index.js:1
+msgid "Enter print icon url"
+msgstr ""
+
+#: build/index.js:1
+msgid "Show Text"
+msgstr ""
+
+#: build/index.js:1
+msgid "Button"
+msgstr ""
+
+#: build/index.js:1
+msgid "Text Typography"
+msgstr ""
+
+#: build/index.js:1
+msgid "Padding:"
+msgstr ""
+
+#: build/index.js:1
+msgid "Border:"
+msgstr ""
+
+#: build/index.js:1
+msgid "Shadow:"
+msgstr ""
+
+#: build/index.js:1
+msgid "Print Button in left"
+msgstr ""
+
+#: build/index.js:1
+msgid "Print Button in center"
+msgstr ""
+
+#: build/index.js:1
+msgid "Print Button in right"
+msgstr ""
+
+#: build/index.js:1
+msgid "Button Text"
+msgstr ""
+
+#: build/block.json
+msgctxt "block title"
+msgid "Print Page"
+msgstr ""
+
+#: build/block.json
+msgctxt "block description"
+msgid "Print the entire page or Section."
+msgstr ""
+
+#: build/block.json
+msgctxt "block keyword"
+msgid "print page"
+msgstr ""
+
+#: build/block.json
+msgctxt "block keyword"
+msgid "print button"
+msgstr ""
+
+#: build/block.json
+msgctxt "block keyword"
+msgid "page print"
+msgstr ""

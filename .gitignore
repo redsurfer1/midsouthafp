@@ -1,0 +1,33 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+.idea/
+.vscode/
+*.sublime-workspace
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.cache/
+
+# PHP / Composer
+vendor/
+composer.lock
+.env
+.env.*
+
+# WordPress
+wp-content/cache/
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/advanced-cache.php
+wp-content/wp-cache-config.php
+wp-content/object-cache.php
+
+# Misc
+*.bak
+*.swp
+*.swo
