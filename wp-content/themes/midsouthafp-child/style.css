@@ -1,0 +1,22 @@
+/*
+ Theme Name:   MidSouth AFP Child
+ Theme URI:    https://github.com/redsurfer1/midsouthafp
+ Description:  Child theme for performance and accessibility enhancements on the MidSouth AFP site. Based on Divi.
+ Author:       MidSouth AFP
+ Template:     Divi
+ Version:      1.0.0
+*/
+
+/* Load child theme overrides here as needed */
+
+.screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
