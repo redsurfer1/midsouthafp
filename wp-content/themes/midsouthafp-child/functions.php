@@ -2,7 +2,7 @@
 /**
  * Theme: MidSouth AFP Child
  * Author: MidSouth AFP
- * Version: 1.0.5
+ * Version: 1.0.6
  *
  * @package MidSouthAFP_Child
  */
@@ -475,11 +475,9 @@ add_filter( 'robots_txt', 'midsouthafp_child_robots_txt_sitemap', 10, 2 );
 /**
  * One-time Yoast social settings configurator.
  * Visit: /wp-admin/?msafp_yoast_social=1 (admin only).
+ * Optional: &og_image_id=ATTACHMENT_ID (after ?generate_og_image=1).
  *
- * TODO: Replace og_default_image with a 1200×630 branded image.
- * Current: afp-logo.jpg (logo only, not optimized for social share).
- * Recommended: Create navy background + AFP logo + tagline at 1200×630.
- * Upload to Media Library, get URL, update og_default_image in $updates below.
+ * OG image: generated via ?generate_og_image=1. See inc/generate-og-image.php
  */
 function midsouthafp_child_configure_yoast_social() {
 	if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
@@ -494,10 +492,21 @@ function midsouthafp_child_configure_yoast_social() {
 
 	$current = get_option( 'wpseo_social', array() );
 
+	$og_image_id = ! empty( $_GET['og_image_id'] )
+		? absint( $_GET['og_image_id'] )
+		: '';
+	$og_image_url = $og_image_id
+		? wp_get_attachment_url( $og_image_id )
+		: 'https://midsouthafp.org/wp-content/uploads/og-midsouthafp-1200x630.png';
+
+	if ( $og_image_id && ! $og_image_url ) {
+		wp_die( esc_html__( 'Invalid og_image_id: attachment not found.', 'midsouthafp-child' ) );
+	}
+
 	$updates = array(
 		'opengraph'           => true,
-		'og_default_image'    => 'https://midsouthafp.org/wp-content/uploads/2024/08/afp-logo.jpg',
-		'og_default_image_id' => '',
+		'og_default_image'    => $og_image_url,
+		'og_default_image_id' => (string) $og_image_id,
 		'og_frontpage_title'  => 'MidSouth AFP – Empowering Financial Professionals',
 		'og_frontpage_desc'   => 'MidSouth AFP is a Memphis-based nonprofit for treasury '
 			. 'and finance professionals. Quarterly events, CTP credits, '
@@ -580,7 +589,7 @@ function midsouthafp_child_configure_yoast_social() {
 		'<h2 style="color:green">' . esc_html__( 'Yoast social settings configured', 'midsouthafp-child' ) . '</h2>' .
 		'<ul>' .
 		'<li>' . esc_html__( 'Open Graph: enabled', 'midsouthafp-child' ) . '</li>' .
-		'<li>' . esc_html__( 'Default OG image: afp-logo.jpg', 'midsouthafp-child' ) . '</li>' .
+		'<li>' . esc_html__( 'Default OG image:', 'midsouthafp-child' ) . ' <code>' . esc_html( $og_image_url ) . '</code></li>' .
 		'<li>' . esc_html__( 'Twitter card: summary_large_image', 'midsouthafp-child' ) . '</li>' .
 		'<li>' . esc_html__( 'Facebook page linked', 'midsouthafp-child' ) . '</li>' .
 		$fp_li .
@@ -593,6 +602,60 @@ function midsouthafp_child_configure_yoast_social() {
 	);
 }
 add_action( 'admin_init', 'midsouthafp_child_configure_yoast_social' );
+
+/**
+ * Dismissible post-launch admin notice.
+ * Dismiss forever via ?dismiss_msafp_notice=1&_wpnonce=...
+ */
+function midsouthafp_child_post_launch_notice() {
+	if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
+	if ( ! empty( $_GET['dismiss_msafp_notice'] ) ) {
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'msafp_dismiss_notice' ) ) {
+			wp_die( esc_html__( 'Invalid dismiss link.', 'midsouthafp-child' ) );
+		}
+		update_option( 'msafp_launch_notice_dismissed', '1' );
+		wp_safe_redirect( admin_url() );
+		exit;
+	}
+
+	if ( get_option( 'msafp_launch_notice_dismissed' ) ) {
+		return;
+	}
+
+	$steps = array(
+		__( 'Run alt text fix', 'midsouthafp-child' )        => admin_url( '?run_alt_fix=1' ),
+		__( 'Run health check', 'midsouthafp-child' )        => admin_url( '?msafp_health=1' ),
+		__( 'Configure Yoast OG', 'midsouthafp-child' )      => admin_url( '?msafp_yoast_social=1' ),
+		__( 'Generate OG image', 'midsouthafp-child' )       => admin_url( '?generate_og_image=1' ),
+		__( 'Purge Divi cache', 'midsouthafp-child' )        => admin_url( '?purge_divi_cache=1' ),
+		__( 'Run ID + H1 audit', 'midsouthafp-child' )       => home_url( '/?audit_ids=1' ),
+	);
+
+	$links = '';
+	foreach ( $steps as $label => $url ) {
+		$links .= '<a href="' . esc_url( $url ) . '" style="margin-right:16px">' . esc_html( $label ) . '</a>';
+	}
+
+	$dismiss_url = esc_url(
+		add_query_arg(
+			array(
+				'dismiss_msafp_notice' => '1',
+				'_wpnonce'               => wp_create_nonce( 'msafp_dismiss_notice' ),
+			),
+			admin_url()
+		)
+	);
+
+	echo '<div class="notice notice-warning" style="padding:12px 16px"><p><strong>' .
+		esc_html__( 'MidSouth AFP — Post-launch checklist', 'midsouthafp-child' ) .
+		'</strong></p><p>' . $links . '</p><p><a href="' . $dismiss_url .
+		'" style="font-size:12px;color:#666">' .
+		esc_html__( 'Dismiss permanently', 'midsouthafp-child' ) . '</a></p></div>';
+}
+add_action( 'admin_notices', 'midsouthafp_child_post_launch_notice' );
 
 /**
  * Purge Divi static CSS and common caches (shared implementation).
@@ -893,3 +956,4 @@ add_action( 'admin_init', 'midsouthafp_child_health_check' );
 require_once get_stylesheet_directory() . '/inc/id-audit.php';
 require_once get_stylesheet_directory() . '/inc/homepage-hero.php';
 require_once get_stylesheet_directory() . '/inc/rollback.php';
+require_once get_stylesheet_directory() . '/inc/generate-og-image.php';
