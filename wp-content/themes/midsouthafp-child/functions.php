@@ -2,7 +2,7 @@
 /**
  * Theme: MidSouth AFP Child
  * Author: MidSouth AFP
- * Version: 1.0.3
+ * Version: 1.0.4
  *
  * @package MidSouthAFP_Child
  */
@@ -443,5 +443,212 @@ function midsouthafp_child_purge_divi_cache_after_switch() {
 }
 add_action( 'after_switch_theme', 'midsouthafp_child_purge_divi_cache_after_switch' );
 
+/**
+ * Public JSON health probe (no auth). Minimal fields for uptime monitors.
+ *
+ * @return WP_REST_Response
+ */
+function midsouthafp_child_rest_health_basic() {
+	return new WP_REST_Response(
+		array(
+			'ok'           => true,
+			'service'      => 'midsouthafp',
+			'wp_version'   => get_bloginfo( 'version' ),
+			'php_version'  => PHP_VERSION,
+			'stylesheet'   => get_stylesheet(),
+			'template'     => get_template(),
+			'timestamp'    => gmdate( 'c' ),
+		),
+		200
+	);
+}
+
+/**
+ * Register REST route for basic health check.
+ */
+function midsouthafp_child_register_health_rest_route() {
+	register_rest_route(
+		'midsouthafp/v1',
+		'/health',
+		array(
+			'methods'             => 'GET',
+			'callback'            => 'midsouthafp_child_rest_health_basic',
+			'permission_callback' => '__return_true',
+		)
+	);
+}
+add_action( 'rest_api_init', 'midsouthafp_child_register_health_rest_route' );
+
+/**
+ * Full health check (admin + ?msafp_health=1). HTML table output.
+ */
+function midsouthafp_child_health_check() {
+	if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	if ( empty( $_GET['msafp_health'] ) ) {
+		return;
+	}
+
+	$checks = array();
+
+	$checks['active_theme'] = array(
+		'value' => get_stylesheet(),
+		'pass'  => get_stylesheet() === 'midsouthafp-child',
+		'note'  => 'Should be midsouthafp-child',
+	);
+
+	$checks['parent_theme'] = array(
+		'value' => get_template(),
+		'pass'  => get_template() === 'Divi',
+		'note'  => 'Should be Divi',
+	);
+
+	$show_on_front = get_option( 'show_on_front' );
+	$front_page_id = (int) get_option( 'page_on_front' );
+
+	$checks['front_page_type'] = array(
+		'value' => $show_on_front,
+		'pass'  => 'page' === $show_on_front,
+		'note'  => 'Must be "page" for hero + is_front_page() to fire',
+	);
+
+	$checks['front_page_set'] = array(
+		'value' => (string) $front_page_id,
+		'pass'  => $front_page_id > 0,
+		'note'  => 'A static page must be set as homepage',
+	);
+
+	$mem_page = get_page_by_path( 'membership-invoice', OBJECT, 'page' );
+	$checks['membership_page'] = array(
+		'value' => $mem_page ? get_permalink( $mem_page->ID ) : 'NOT FOUND',
+		'pass'  => (bool) $mem_page,
+		'note'  => 'membership-invoice page; fallback to /contact-us/ if missing',
+	);
+
+	$contact_page = get_page_by_path( 'contact-us', OBJECT, 'page' );
+	$checks['contact_fallback'] = array(
+		'value' => $contact_page ? get_permalink( $contact_page->ID ) : 'NOT FOUND',
+		'pass'  => (bool) $contact_page,
+		'note'  => 'Fallback CTA target if membership-invoice missing',
+	);
+
+	$checks['tec_active'] = array(
+		'value' => function_exists( 'tribe_get_events' ) ? 'active' : 'not found',
+		'pass'  => function_exists( 'tribe_get_events' ),
+		'note'  => 'Required for next-event card and event schema',
+	);
+
+	if ( function_exists( 'tribe_get_events' ) ) {
+		$upcoming = tribe_get_events(
+			array(
+				'posts_per_page' => 5,
+				'start_date'     => current_time( 'Y-m-d' ),
+			)
+		);
+		$count    = is_array( $upcoming ) ? count( $upcoming ) : 0;
+		$checks['upcoming_events'] = array(
+			'value' => $count . ' upcoming events found',
+			'pass'  => $count > 0,
+			'note'  => 'At least 1 needed for next-event card + Event schema',
+		);
+	}
+
+	if ( defined( 'WPSEO_VERSION' ) ) {
+		$seo_plugin = 'Yoast SEO ' . WPSEO_VERSION;
+	} elseif ( defined( 'RANK_MATH_VERSION' ) ) {
+		$seo_plugin = 'Rank Math ' . RANK_MATH_VERSION;
+	} elseif ( defined( 'AIOSEO_VERSION' ) ) {
+		$seo_plugin = 'AIOSEO ' . AIOSEO_VERSION;
+	} else {
+		$seo_plugin = 'NONE';
+	}
+
+	$checks['seo_plugin'] = array(
+		'value' => $seo_plugin,
+		'pass'  => 'NONE' !== $seo_plugin,
+		'note'  => 'Install Yoast SEO to replace fallback meta description',
+	);
+
+	$cache_dir = WP_CONTENT_DIR . '/et-cache';
+	$checks['et_cache_writable'] = array(
+		'value' => is_dir( $cache_dir )
+			? ( is_writable( $cache_dir ) ? 'writable' : 'NOT WRITABLE' )
+			: 'dir missing',
+		'pass'  => is_dir( $cache_dir ) && is_writable( $cache_dir ),
+		'note'  => 'Divi needs this to regenerate static CSS',
+	);
+
+	$checks['php_version'] = array(
+		'value' => PHP_VERSION,
+		'pass'  => version_compare( PHP_VERSION, '7.4', '>=' ),
+		'note'  => 'Minimum 7.4 required',
+	);
+
+	$checks['wp_debug'] = array(
+		'value' => WP_DEBUG ? 'ON' : 'OFF',
+		'pass'  => ! WP_DEBUG,
+		'note'  => 'Should be OFF on production',
+	);
+
+	$git_head = '';
+	$git_candidates = array(
+		ABSPATH . '.git/refs/heads/main',
+		ABSPATH . '.git/refs/heads/master',
+		dirname( ABSPATH ) . '/.git/refs/heads/main',
+		dirname( ABSPATH ) . '/.git/refs/heads/master',
+	);
+	foreach ( $git_candidates as $git_file ) {
+		if ( is_readable( $git_file ) ) {
+			$raw = trim( (string) file_get_contents( $git_file ) );
+			if ( preg_match( '/^[a-f0-9]{40}$/i', $raw ) ) {
+				$git_head = $raw;
+				break;
+			}
+		}
+	}
+
+	$checks['git_head'] = array(
+		'value' => $git_head ? $git_head : 'could not read',
+		'pass'  => 40 === strlen( $git_head ),
+		'note'  => 'Compare to: git log --oneline -1 on server',
+	);
+
+	$total  = count( $checks );
+	$passed = count(
+		array_filter(
+			$checks,
+			static function ( $c ) {
+				return ! empty( $c['pass'] );
+			}
+		)
+	);
+	$failed = $total - $passed;
+
+	header( 'Content-Type: text/html; charset=utf-8' );
+	echo '<html><body style="font-family:monospace;padding:2rem">';
+	echo '<h2>MidSouth AFP — Health Check</h2>';
+	echo '<p>' . (int) $passed . '/' . (int) $total . ' checks passed';
+	if ( $failed ) {
+		echo ' | <strong style="color:red">' . (int) $failed . ' FAILED</strong>';
+	}
+	echo '</p><table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">';
+	echo '<tr><th>Check</th><th>Value</th><th>Pass</th><th>Note</th></tr>';
+	foreach ( $checks as $key => $c ) {
+		$color = ! empty( $c['pass'] ) ? '#d4edda' : '#f8d7da';
+		$icon  = ! empty( $c['pass'] ) ? '&#10003;' : '&#10005;';
+		echo '<tr style="background:' . esc_attr( $color ) . '">';
+		echo '<td>' . esc_html( $key ) . '</td>';
+		echo '<td>' . esc_html( (string) $c['value'] ) . '</td>';
+		echo '<td style="text-align:center">' . $icon . '</td>';
+		echo '<td>' . esc_html( $c['note'] ) . '</td>';
+		echo '</tr>';
+	}
+	echo '</table></body></html>';
+	exit;
+}
+add_action( 'admin_init', 'midsouthafp_child_health_check' );
+
 require_once get_stylesheet_directory() . '/inc/id-audit.php';
 require_once get_stylesheet_directory() . '/inc/homepage-hero.php';
+require_once get_stylesheet_directory() . '/inc/rollback.php';
