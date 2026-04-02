@@ -101,7 +101,6 @@ function midsouthafp_child_generate_og_image() {
 	);
 
 	require_once ABSPATH . 'wp-admin/includes/image.php';
-	require_once ABSPATH . 'wp-admin/includes/file.php';
 
 	$attach_id = wp_insert_attachment( $attachment, $output, 0, true );
 	if ( is_wp_error( $attach_id ) || ! $attach_id ) {
