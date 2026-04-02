@@ -4,7 +4,7 @@
  Description:  Child theme for performance and accessibility enhancements on the MidSouth AFP site. Based on Divi.
  Author:       MidSouth AFP
  Template:     Divi
- Version:      1.0.0
+ Version:      1.0.2
 */
 
 /* Load child theme overrides here as needed */
@@ -20,3 +20,121 @@
 	white-space: nowrap;
 	border: 0;
 }
+
+/* ── Hero section ──────────────────────────────────────── */
+.msafp-hero {
+	background: #0a1f44;
+	padding: 80px 24px 72px;
+	text-align: center;
+}
+.msafp-hero__inner {
+	max-width: 760px;
+	margin: 0 auto;
+}
+.msafp-hero__eyebrow {
+	font-size: 12px;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: #7ea8d8;
+	margin-bottom: 20px;
+}
+.msafp-hero__headline {
+	font-size: clamp(36px, 6vw, 64px);
+	font-weight: 700;
+	color: #ffffff;
+	line-height: 1.12;
+	margin-bottom: 24px;
+}
+.msafp-hero__sub {
+	font-size: 18px;
+	color: #b8cde4;
+	line-height: 1.65;
+	max-width: 600px;
+	margin: 0 auto 36px;
+}
+.msafp-hero__ctas {
+	display: flex;
+	gap: 14px;
+	justify-content: center;
+	flex-wrap: wrap;
+	margin-bottom: 40px;
+}
+.msafp-btn {
+	display: inline-block;
+	padding: 14px 32px;
+	border-radius: 4px;
+	font-size: 15px;
+	font-weight: 600;
+	text-decoration: none;
+	transition: opacity .18s ease;
+}
+.msafp-btn:hover { opacity: .88; }
+.msafp-btn--primary {
+	background: #c9a84c;
+	color: #0a1f44;
+}
+.msafp-btn--secondary {
+	background: transparent;
+	border: 2px solid #7ea8d8;
+	color: #ffffff;
+}
+.msafp-hero__next-event {
+	display: inline-block;
+	border: 1px solid rgba(255,255,255,.18);
+	border-radius: 6px;
+	padding: 16px 24px;
+	margin-top: 8px;
+}
+.msafp-hero__event-link {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	text-decoration: none;
+	text-align: left;
+}
+.msafp-hero__event-label {
+	font-size: 10px;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	color: #c9a84c;
+}
+.msafp-hero__event-title {
+	font-size: 15px;
+	font-weight: 600;
+	color: #ffffff;
+}
+.msafp-hero__event-date {
+	font-size: 13px;
+	color: #7ea8d8;
+}
+@media ( max-width: 600px ) {
+	.msafp-hero { padding: 60px 20px 56px; }
+	.msafp-hero__ctas { flex-direction: column; align-items: center; }
+	.msafp-btn { width: 100%; max-width: 300px; text-align: center; }
+}
+/* ── End hero ──────────────────────────────────────────── */
+
+/* ── Sticky nav ────────────────────────────────────────── */
+#main-header,
+#top-header {
+	position: sticky;
+	top: 0;
+	z-index: 9999;
+	background: #0a1f44 !important;
+}
+#main-header .et_pb_menu__menu a,
+#main-header nav a {
+	color: #ffffff !important;
+}
+#main-header .et_pb_menu__menu a:hover,
+#main-header nav a:hover {
+	color: #c9a84c !important;
+}
+/* Admin bar offset */
+.admin-bar #main-header {
+	top: 32px;
+}
+@media screen and ( max-width: 782px ) {
+	.admin-bar #main-header { top: 46px; }
+}
+/* ── End sticky nav ────────────────────────────────────── */

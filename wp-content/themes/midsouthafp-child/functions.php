@@ -2,7 +2,7 @@
 /**
  * Theme: MidSouth AFP Child
  * Author: MidSouth AFP
- * Version: 1.0.1
+ * Version: 1.0.2
  *
  * @package MidSouthAFP_Child
  */
@@ -194,6 +194,38 @@ function midsouthafp_child_maybe_run_alt_fix() {
 add_action( 'admin_init', 'midsouthafp_child_maybe_run_alt_fix' );
 
 /**
+ * Meta description fallback when no major SEO plugin is active.
+ */
+function midsouthafp_child_fallback_meta_description() {
+	if ( defined( 'WPSEO_VERSION' ) ||
+		defined( 'RANK_MATH_VERSION' ) ||
+		defined( 'AIOSEO_VERSION' ) ) {
+		return;
+	}
+
+	$description = '';
+
+	if ( is_front_page() ) {
+		$description = 'MidSouth AFP is a Memphis-based nonprofit for treasury '
+			. 'and finance professionals. Join us for quarterly events, '
+			. 'education, and CTP continuing education credits.';
+	} elseif ( is_singular() ) {
+		$description = wp_strip_all_tags(
+			has_excerpt() ? get_the_excerpt() : wp_trim_words( get_the_content(), 30 )
+		);
+	} elseif ( is_post_type_archive() || is_tax() ) {
+		$description = wp_strip_all_tags( get_the_archive_description() );
+	}
+
+	if ( ! empty( $description ) ) {
+		echo '<meta name="description" content="'
+			. esc_attr( $description )
+			. "\" />\n";
+	}
+}
+add_action( 'wp_head', 'midsouthafp_child_fallback_meta_description', 1 );
+
+/**
  * Organization JSON-LD on the front page.
  */
 function midsouthafp_child_organization_schema() {
@@ -229,44 +261,134 @@ function midsouthafp_child_organization_schema() {
 add_action( 'wp_head', 'midsouthafp_child_organization_schema' );
 
 /**
- * Event JSON-LD on The Events Calendar views (any slug / list / single when query is event).
+ * Event JSON-LD from The Events Calendar (single or list/archive).
  */
 function midsouthafp_child_event_schema() {
-	if ( ! function_exists( 'tribe_is_event_query' ) || ! tribe_is_event_query() ) {
+	if ( ! function_exists( 'tribe_is_event_query' ) ) {
+		return;
+	}
+	if ( ! tribe_is_event_query() ) {
 		return;
 	}
 
+	$schemas = array();
+
+	if ( function_exists( 'tribe_is_event' ) && tribe_is_event() ) {
+		$event_id = get_the_ID();
+		$schema   = midsouthafp_child_build_event_schema( $event_id );
+		if ( $schema ) {
+			$schemas[] = $schema;
+		}
+	} elseif ( function_exists( 'tribe_get_events' ) ) {
+		$events = tribe_get_events(
+			array(
+				'posts_per_page' => 5,
+				'start_date'     => current_time( 'Y-m-d' ),
+				'orderby'        => 'event_date',
+				'order'          => 'ASC',
+			)
+		);
+		foreach ( $events as $event ) {
+			$schema = midsouthafp_child_build_event_schema( $event->ID );
+			if ( $schema ) {
+				$schemas[] = $schema;
+			}
+		}
+	}
+
+	foreach ( $schemas as $schema ) {
+		echo '<script type="application/ld+json">' .
+			wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT ) .
+			"</script>\n";
+	}
+}
+
+/**
+ * Build a single Event schema array from a TEC event post ID.
+ *
+ * @param int $event_id Event post ID.
+ * @return array<string,mixed>|null
+ */
+function midsouthafp_child_build_event_schema( $event_id ) {
+	if ( ! function_exists( 'tribe_get_start_date' ) ) {
+		return null;
+	}
+
+	$event_id = absint( $event_id );
+	if ( ! $event_id ) {
+		return null;
+	}
+
+	$start = tribe_get_start_date( $event_id, false, 'Y-m-d\TH:i' );
+	if ( empty( $start ) ) {
+		return null;
+	}
+
+	$end = function_exists( 'tribe_get_end_date' )
+		? tribe_get_end_date( $event_id, false, 'Y-m-d\TH:i' )
+		: '';
+	if ( empty( $end ) ) {
+		$end = $start;
+	}
+
+	$title = get_the_title( $event_id );
+	$url   = get_permalink( $event_id );
+
+	$post_event = get_post( $event_id );
+	$desc       = '';
+	if ( $post_event instanceof WP_Post ) {
+		$desc = wp_strip_all_tags( get_the_excerpt( $post_event ) );
+		if ( '' === $desc && ! empty( $post_event->post_content ) ) {
+			$desc = wp_strip_all_tags( wp_trim_words( $post_event->post_content, 30 ) );
+		}
+	}
+
+	$venue_id = function_exists( 'tribe_get_venue_id' ) ? tribe_get_venue_id( $event_id ) : 0;
+	$venue_id = absint( $venue_id );
+	$venue_name = ( $venue_id && function_exists( 'tribe_get_venue' ) ) ? tribe_get_venue( $event_id ) : '';
+	$address    = ( $venue_id && function_exists( 'tribe_get_address' ) ) ? tribe_get_address( $event_id ) : '';
+	$city       = ( $venue_id && function_exists( 'tribe_get_city' ) ) ? tribe_get_city( $event_id ) : '';
+	$state      = ( $venue_id && function_exists( 'tribe_get_stateprovince' ) ) ? tribe_get_stateprovince( $event_id ) : '';
+	$zip        = ( $venue_id && function_exists( 'tribe_get_zip' ) ) ? tribe_get_zip( $event_id ) : '';
+
 	$schema = array(
-		'@context'              => 'https://schema.org',
-		'@type'                 => 'Event',
-		'name'                  => 'MidSouth AFP Quarterly Meeting',
-		'startDate'             => '2026-04-23T11:30',
-		'endDate'               => '2026-04-23T13:00',
-		'eventAttendanceMode'   => 'https://schema.org/OfflineEventAttendanceMode',
-		'eventStatus'           => 'https://schema.org/EventScheduled',
-		'location'              => array(
-			'@type'   => 'Place',
-			'name'    => 'Seasons 52',
-			'address' => array(
-				'@type'           => 'PostalAddress',
-				'streetAddress'   => '6085 Poplar Ave',
-				'addressLocality' => 'Memphis',
-				'addressRegion'   => 'TN',
-				'postalCode'      => '38119',
-				'addressCountry'  => 'US',
-			),
-		),
-		'organizer'             => array(
+		'@context'            => 'https://schema.org',
+		'@type'               => 'Event',
+		'name'                => $title,
+		'url'                 => $url,
+		'startDate'           => $start,
+		'endDate'             => $end,
+		'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
+		'eventStatus'         => 'https://schema.org/EventScheduled',
+		'organizer'           => array(
 			'@type' => 'Organization',
 			'name'  => 'MidSouth AFP',
 			'url'   => 'https://www.midsouthafp.org',
 		),
 	);
 
-	echo '<script type="application/ld+json">' .
-		wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT ) .
-		"</script>\n";
+	if ( ! empty( $desc ) ) {
+		$schema['description'] = $desc;
+	}
+
+	if ( ! empty( $venue_name ) ) {
+		$schema['location'] = array(
+			'@type'   => 'Place',
+			'name'    => $venue_name,
+			'address' => array(
+				'@type'           => 'PostalAddress',
+				'streetAddress'   => $address,
+				'addressLocality' => $city,
+				'addressRegion'   => $state,
+				'postalCode'      => $zip,
+				'addressCountry'  => 'US',
+			),
+		);
+	}
+
+	return $schema;
 }
 add_action( 'wp_head', 'midsouthafp_child_event_schema' );
 
 require_once get_stylesheet_directory() . '/inc/id-audit.php';
+require_once get_stylesheet_directory() . '/inc/homepage-hero.php';

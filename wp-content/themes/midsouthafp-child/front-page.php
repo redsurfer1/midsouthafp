@@ -2,7 +2,7 @@
 /**
  * Front page template (child override).
  *
- * Adds a visually hidden H1 for accessibility/SEO when the Divi builder omits one.
+ * Mirrors Divi page.php; visible H1 is provided by the homepage hero (et_before_main_content).
  */
 
 get_header();
@@ -11,19 +11,12 @@ $has_pb_fn = function_exists( 'et_pb_is_pagebuilder_used' );
 if ( $has_pb_fn ) {
 	$is_page_builder_used = et_pb_is_pagebuilder_used( get_the_ID() );
 } else {
-	// Divi helper missing: use builder-style layout so we do not duplicate a visible H1 below.
 	$is_page_builder_used = true;
 }
-
-$show_screen_reader_h1 = $is_page_builder_used;
 
 ?>
 
 <div id="main-content">
-
-<?php if ( $show_screen_reader_h1 ) : ?>
-	<h1 class="screen-reader-text">MidSouth Association for Financial Professionals – Memphis, TN</h1>
-<?php endif; ?>
 
 <?php if ( ! $is_page_builder_used ) : ?>
 
