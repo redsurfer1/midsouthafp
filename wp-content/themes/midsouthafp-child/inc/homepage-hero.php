@@ -1,12 +1,32 @@
 <?php
 /**
- * Homepage hero banner — injected above Divi builder content.
- * Hooked to: et_before_main_content (Divi-specific action).
+ * Homepage hero banner — injected above Divi main content.
+ *
+ * Primary: et_before_main_content (after header in default Divi).
+ * Fallback: et_theme_builder_template_before_body (Theme Builder layouts).
+ *
+ * Note: wp_body_open runs before the header in Divi’s header.php, so it is
+ * not used here — it would place the hero above the navigation.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/**
+ * Output hero at most once per request (shared by multiple hooks).
+ */
+function midsouthafp_child_hero_once() {
+	static $done = false;
+	if ( $done ) {
+		return;
+	}
+	$done = true;
+	midsouthafp_child_homepage_hero();
+}
+
+add_action( 'et_before_main_content', 'midsouthafp_child_hero_once', 1 );
+add_action( 'et_theme_builder_template_before_body', 'midsouthafp_child_hero_once', 1, 3 );
 
 /**
  * Output hero markup on the front page only.
@@ -15,6 +35,11 @@ function midsouthafp_child_homepage_hero() {
 	if ( ! is_front_page() ) {
 		return;
 	}
+
+	$membership_page = get_page_by_path( 'membership-invoice', OBJECT, 'page' );
+	$membership_url  = ( $membership_page instanceof WP_Post )
+		? get_permalink( $membership_page->ID )
+		: home_url( '/contact-us/' );
 
 	$next_event      = '';
 	$events_page_url = function_exists( 'tribe_get_events_link' )
@@ -65,7 +90,7 @@ function midsouthafp_child_homepage_hero() {
 				— quarterly meetings, CTP education credits, and peer networking since 1979.
 			</p>
 			<div class="msafp-hero__ctas">
-				<a href="<?php echo esc_url( home_url( '/membership-invoice' ) ); ?>"
+				<a href="<?php echo esc_url( $membership_url ); ?>"
 					class="msafp-btn msafp-btn--primary">
 					Join MidSouth AFP
 				</a>
@@ -83,4 +108,3 @@ function midsouthafp_child_homepage_hero() {
 	</section>
 	<?php
 }
-add_action( 'et_before_main_content', 'midsouthafp_child_homepage_hero', 1 );

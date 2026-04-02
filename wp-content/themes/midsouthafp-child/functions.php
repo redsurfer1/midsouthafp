@@ -2,7 +2,7 @@
 /**
  * Theme: MidSouth AFP Child
  * Author: MidSouth AFP
- * Version: 1.0.2
+ * Version: 1.0.3
  *
  * @package MidSouthAFP_Child
  */
@@ -389,6 +389,59 @@ function midsouthafp_child_build_event_schema( $event_id ) {
 	return $schema;
 }
 add_action( 'wp_head', 'midsouthafp_child_event_schema' );
+
+/**
+ * Purge Divi static CSS and common caches (shared implementation).
+ */
+function midsouthafp_child_purge_divi_cache_run() {
+	if ( function_exists( 'et_core_clear_cache' ) ) {
+		et_core_clear_cache();
+	}
+	if ( function_exists( 'wp_cache_flush' ) ) {
+		wp_cache_flush();
+	}
+	if ( function_exists( 'rocket_clean_domain' ) ) {
+		rocket_clean_domain();
+	}
+	if ( function_exists( 'w3tc_flush_all' ) ) {
+		w3tc_flush_all();
+	}
+	do_action( 'litespeed_purge_all' );
+}
+
+/**
+ * Manual purge: /wp-admin/?purge_divi_cache=1 (admin only).
+ */
+function midsouthafp_child_purge_divi_cache_admin() {
+	if ( ! is_admin() || ! current_user_can( 'manage_options' ) || empty( $_GET['purge_divi_cache'] ) ) {
+		return;
+	}
+
+	midsouthafp_child_purge_divi_cache_run();
+
+	wp_die(
+		'<p style="font-family:sans-serif;padding:2rem">' .
+		'Cache purge completed (Divi static CSS + compatible object/page caches).<br><br>' .
+		'<a href="' . esc_url( home_url() ) . '">&larr; Return to site</a></p>',
+		'Cache Purged',
+		array( 'response' => 200 )
+	);
+}
+add_action( 'admin_init', 'midsouthafp_child_purge_divi_cache_admin' );
+
+/**
+ * After switching to this child theme, clear caches once (admin activation).
+ */
+function midsouthafp_child_purge_divi_cache_after_switch() {
+	if ( get_option( 'stylesheet' ) !== 'midsouthafp-child' ) {
+		return;
+	}
+	if ( ! is_admin() || ! current_user_can( 'switch_themes' ) ) {
+		return;
+	}
+	midsouthafp_child_purge_divi_cache_run();
+}
+add_action( 'after_switch_theme', 'midsouthafp_child_purge_divi_cache_after_switch' );
 
 require_once get_stylesheet_directory() . '/inc/id-audit.php';
 require_once get_stylesheet_directory() . '/inc/homepage-hero.php';

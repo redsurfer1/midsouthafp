@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Inject duplicate-ID detection script in the footer when requested.
+ * Inject duplicate-ID and H1 detection script in the footer when requested.
  */
 function midsouthafp_child_audit_duplicate_ids_script() {
 	if ( is_admin() || ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
@@ -53,6 +53,27 @@ function midsouthafp_child_audit_duplicate_ids_script() {
     document.body.appendChild(box);
   } else {
     console.log('No duplicate IDs found on this page.');
+  }
+
+  // H1 audit
+  const h1s = document.querySelectorAll('h1');
+  if (h1s.length > 1) {
+    console.warn('MULTIPLE H1 TAGS FOUND:', h1s.length);
+    h1s.forEach((el, i) => {
+      console.log('H1[' + i + ']:', el.textContent.trim().substring(0, 80),
+        '| classes:', el.className);
+    });
+    const h1box = document.createElement('div');
+    h1box.style.cssText = 'position:fixed;bottom:80px;right:20px;background:#fff;' +
+      'border:2px solid orange;padding:12px 16px;font-size:13px;z-index:99999;' +
+      'max-width:360px;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.15)';
+    h1box.innerHTML = '<strong style="color:orange">' + h1s.length +
+      ' H1 tags found</strong><br>Check browser console for details.';
+    document.body.appendChild(h1box);
+  } else if (h1s.length === 0) {
+    console.warn('NO H1 TAG FOUND on this page.');
+  } else {
+    console.log('H1 check passed: exactly 1 H1 found.');
   }
 })();
 </script>
